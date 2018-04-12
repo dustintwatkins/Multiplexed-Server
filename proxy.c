@@ -3,7 +3,7 @@
 #include<fcntl.h>
 #include<stdlib.h>
 #include<stdio.h>
-//#include<sys/epoll.h>
+#include<sys/epoll.h>
 #include<sys/socket.h>
 #include<string.h>
 #include"cache.h"
@@ -19,6 +19,7 @@ void command(void);
 void interrupt_handler(int);
 int handle_client(int connfd);
 int handle_new_client(int listenfd);
+void write_log_entry(char* uri, int size);//, struct *sockaddr_storage addr);
 
 CacheList* CACHE_LIST;
 size_t written = 0;
@@ -50,11 +51,6 @@ int main(int argc, char **argv)
 		fprintf(stderr, "usage: %s <port>\n", argv[0]);
 		exit(0);
 	}
-
-	//"a" - open for writing
-	log_file = fopen("hello.txt", "a");
-	fprintf(log_file, "%s\n", "hello");
-	fclose(log_file);
 
 	listenfd = Open_listenfd(argv[1]);
 
@@ -189,5 +185,24 @@ void interrupt_handler(int num){
     free(CACHE_LIST);
 	//Will also need to free ea
     exit(0);
+}
+
+void write_log_entry(char* uri, int size){//, struct sockaddr_storage *addr){
+
+	//Format current time string
+	time_t t;
+	char t_string[MAXLINE];
+	t = time(NULL);
+	strftime(t_string, MAXLINE, "%a %d %b %Y %H:%M %S %Z", localtime(&t));
+	//printf("time: %s\n", t_string);
+
+	//Open log.txt
+	//"a" - open for writing
+	log_file = fopen("log.txt", "a");
+	fprintf(log_file, "REQUEST ON: %s\n", t_string);
+	//fprintf(log_file, "FROM: %s\n", host);
+	fprintf(log_file, "URI: %s\n\n", uri);
+	fclose(log_file);
+
 }
 /* $end select */
