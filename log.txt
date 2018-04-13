@@ -1,1 +1,4 @@
-hello
+REQUEST ON: Thu 12 Apr 2018 23:46 15 MDT
+URI: GET http://localhost:50183/home.html HTTP/1.1
+
+

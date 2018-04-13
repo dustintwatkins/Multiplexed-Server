@@ -15,11 +15,15 @@
 /* $begin select */
 #define MAXEVENTS 64
 
+/* You won't lose style points for including this long line in your code */
+static const char *user_agent_hdr = "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:10.0.3) Gecko/20120305 Firefox/10.0.3\r\n";
+
+
 void command(void);
 void interrupt_handler(int);
 int handle_client(int connfd);
 int handle_new_client(int listenfd);
-void write_log_entry(char* uri, int size);//, struct *sockaddr_storage addr);
+void write_log_entry(char* uri, size_t size);//, struct *sockaddr_storage addr);
 void handler(int connection_fd);
 void parse_uri(char *uri, char *hostname, char *path, int *port);
 void build_http_header(char *http_header, char *hostname, char *path, int port, rio_t *rio_client);
@@ -37,18 +41,18 @@ int efd;
 
 int main(int argc, char **argv)
 {
-	int listenfd, connfd;
+	int listenfd;
 	socklen_t clientlen;
 	struct sockaddr_storage clientaddr;
 	struct epoll_event event;
 	struct epoll_event *events;
 	int i;
-	int len;
+	//int len;
 	int *argptr;
 	struct event_action *ea;
 
 	size_t n;
-	char buf[MAXLINE];
+	//char buf[MAXLINE];
 
 	if (argc != 2) {
 		fprintf(stderr, "usage: %s <port>\n", argv[0]);
@@ -120,6 +124,7 @@ int main(int argc, char **argv)
 }
 
 int handle_new_client(int listenfd) {
+	printf("NEW CLIENT\n");
 	socklen_t clientlen;
 	int connfd;
 	struct sockaddr_storage clientaddr;
@@ -163,9 +168,9 @@ int handle_new_client(int listenfd) {
 }
 
 
-int handle_client(int connfd) {
+int handle_client(int connection_fd) {
 
-	printf("entered handle client\n");
+	//printf("entered handle client\n");
 
 	int dest_server_fd;
 	char buf[MAXLINE];
@@ -173,9 +178,15 @@ int handle_client(int connfd) {
 	char usrbuf[MAXLINE];                                                       //Buffer to read from
   char method[MAXLINE];                                                       //Method, should be "GET" we don't handle anything else
   char uri[MAXLINE];                                                          //The address we are going to i.e(https://www.example.com/)
-  char version[MAXLINE];                                                      //Will be changing version to 1.0 always    char hostname[MAXLINE];                                                     //i.e. www.example.com
+  char version[MAXLINE];                                                      //Will be changing version to 1.0 always
+	char hostname[MAXLINE];                                                     //i.e. www.example.com
+	memset(&hostname[0], 0, sizeof(hostname));
   char path[MAXLINE];                                                         //destinationin server i.e /home/index.html
+	memset(&path[0], 0, sizeof(path));
   char http_header[MAXLINE];
+	//memset(&http_header[0], 0, sizeof(http_header));
+	//char* http_header = malloc(MAXLINE * sizeof(char));
+
   int port;
 
 	rio_t rio_client;                                                           //Client rio_t
@@ -190,11 +201,11 @@ int handle_client(int connfd) {
 			return;
 	}
 
-	printf("URI: %s\n", uri);
-	printf("VERSION: %s\n", version);
-	printf("METHOD: %s\n", method);
+	//printf("URI: %s\n", uri);
+	//printf("VERSION: %s\n", version);
+	//printf("METHOD: %s\n", method);
 
-	printf("Checking cache...\n");
+	//printf("Checking cache...\n");
 	//Check if request exists in cache
 	CachedItem* cached_item = find(buf, CACHE_LIST);
 	if(cached_item != NULL){
@@ -209,7 +220,7 @@ int handle_client(int connfd) {
 		return;
 	}
 
-	printf("DNE in cache...\n");
+	//printf("DNE in cache...\n");
 
 	/*  PARSE_URI
 	*   get the hostname
@@ -219,22 +230,23 @@ int handle_client(int connfd) {
 
 	memset(&path[0], 0, sizeof(path));                                          //Reset the memeory of path
 	memset(&hostname[0], 0, sizeof(hostname));                                  //Reset the memory of hostname
+	//memset(&uri[0], 0, sizeof(uri));
 
 	//Parse the URI to get hostname, path and port
-	printf("PARSING URI...\n");
+	//printf("PARSING URI...\n");
   parse_uri(uri, hostname, path, &port);
-	printf("DONE PARSING...\n");
-	printf("PATH: %s\n", path);
-	printf("PORT: %d\n", port);
-	printf("HOSTNAME: %s\n", hostname);
+	//printf("DONE PARSING...\n");
+	//printf("PATH: %s\n", path);
+	//printf("PORT: %d\n", port);
+	//printf("HOSTNAME: %s\n", hostname);
 
 	//Build the http header from the parsed_uri to send to server
-	printf("build_http_header\n");
+	//printf("build_http_header\n");
   build_http_header(http_header, hostname, path, port, &rio_client);
-	printf("DONE WITH HEADER\n");
+	//printf("DONE WITH HEADER\n");
   printf("%s\n", http_header);
 
-	printf("ATTEMPTING CONNECTION TO DESTINATION SERVER\n");
+	//printf("ATTEMPTING CONNECTION TO DESTINATION SERVER\n");
 	//Establish connection to destination server
   char port_string[100];
   sprintf(port_string, "%d", port);
@@ -251,17 +263,19 @@ int handle_client(int connfd) {
   Rio_readinitb(&rio_server, dest_server_fd);
   rio_writen(dest_server_fd, http_header, sizeof(http_header));
 
+	printf("after writen\n");
+
   size_t size = 0;
   size_t total_bytes = 0;
   char obj[MAX_OBJECT_SIZE];
   while((size = rio_readlineb(&rio_server, usrbuf, MAXLINE)) != 0){
+					printf("size\n");
           total_bytes += size;
           rio_writen(connection_fd, usrbuf, size);
           if(total_bytes < MAX_OBJECT_SIZE)
             strcat(obj, usrbuf);
   }
 
-	printf("total_bytes received: %s\n", total_bytes);
 	printf("buf: %s\n", buf);
 
   if(total_bytes < MAX_OBJECT_SIZE){
@@ -269,6 +283,11 @@ int handle_client(int connfd) {
     strcpy(to_be_cached, obj);
     cache_URL(buf, to_be_cached, total_bytes, CACHE_LIST);
   }
+
+	printf("CACHED: %s\n", CACHE_LIST->first->url);
+
+	write_log_entry(buf, total_bytes);
+	//free(http_header);
 
 	// int len;
 	// while ((len = recv(connfd, buf, MAXLINE, 0)) > 0) {
@@ -289,8 +308,6 @@ int handle_client(int connfd) {
 	// }
 }
 
-
-
 void interrupt_handler(int num){
     cache_destruct(CACHE_LIST);
     free(CACHE_LIST);
@@ -298,7 +315,7 @@ void interrupt_handler(int num){
     exit(0);
 }
 
-void write_log_entry(char* uri, int size){//, struct sockaddr_storage *addr){
+void write_log_entry(char* uri, size_t size){//, struct sockaddr_storage *addr){
 
 	//Format current time string
 	time_t t;
